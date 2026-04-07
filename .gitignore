@@ -1,0 +1,55 @@
+/GOOGLE_OAUTH_SETUP.md
+
+# Python virtual environments
+venv/
+.venv/
+.wslvenv/
+.testvenv/
+env/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Environment variables
+.env
+.env.*
+!.env.example
+rag_frontend/.env
+!rag_frontend/.env.example
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Flutter build artifacts
+rag_frontend/build/
+rag_frontend/.dart_tool/
+rag_frontend/.packages
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local properties (SDK paths)
+**/local.properties
+
+# Tool artifacts
+.specstory/
+chat_history/
+
+# Temp files
+*.tmp
+*_temp.*

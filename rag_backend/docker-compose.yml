@@ -1,0 +1,110 @@
+services:
+  # 1. LLM 추론 엔진 (Ollama) — GPU 가속 활성화
+  ollama:
+    image: ollama/ollama:latest
+    container_name: rag_ollama
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    volumes:
+      - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+
+  # 2. 벡터 데이터베이스 (Qdrant)
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: rag_qdrant
+    ports:
+      - "6333:6333" 
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/collections"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+
+  # 3. 관계형 데이터베이스 (PostgreSQL - 영구 로그 저장)
+  postgres:
+    image: postgres:15-alpine
+    container_name: rag_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-adminpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-rag_history}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-rag_history}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # 4. 인메모리 캐시 (Redis - 대화 문맥 저장)
+  redis:
+    image: redis:7-alpine
+    container_name: rag_redis
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # 5. 백엔드 API 서버 (FastAPI + LangChain)
+  # 주석처리: 로컬 개발을 위해 FastAPI는 Docker가 아니라 로컬에서 실행합니다.
+  # 이렇게 하면 코드 변경 시 Docker 재빌드를 기다릴 필요가 없어 개발 속도가 빠릅니다.
+  # api_backend:
+  #   build: . # 현재 폴더의 Dockerfile을 읽어서 빌드하라는 뜻
+  #   container_name: rag_fastapi
+  #   working_dir: /app # 1. 작업 디렉토리를 /app으로 고정
+  #   command: uvicorn main:app --host 0.0.0.0 --port 8000 # 2. 실행 명령 지정
+  #   ports:
+  #     - "8000:8000"
+  #   volumes:
+  #     - ./app:/app # 로컬 코드를 컨테이너와 동기화 (재시작 없이 코드 수정 가능)
+  #   env_file:
+  #     - .env
+  #   dns:
+  #     - 8.8.8.8
+  #   depends_on:
+  #     ollama:
+  #       condition: service_started
+  #     qdrant:
+  #       condition: service_started
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   restart: unless-stopped
+
+# 데이터 영구 보존 볼륨
+volumes:
+  ollama_data:
+  qdrant_data:
+  postgres_data:
+
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br0

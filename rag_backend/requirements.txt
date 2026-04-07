@@ -1,0 +1,35 @@
+# === 웹 프레임워크 ===
+fastapi
+uvicorn[standard]
+
+# === 설정 관리 ===
+pydantic
+pydantic-settings
+python-dotenv
+python-multipart
+
+# === 데이터베이스 ===
+sqlalchemy
+psycopg2-binary
+redis
+alembic
+
+# === 인증 ===
+google-auth
+PyJWT
+httpx
+
+# === LLM / RAG (추후 연동) ===
+langchain
+langchain-community
+langchain-huggingface
+langchain-text-splitters
+qdrant-client
+sentence-transformers
+ollama
+
+# === 오디오 처리 ===
+faster-whisper
+
+# === 문서 처리 ===
+pymupdf
