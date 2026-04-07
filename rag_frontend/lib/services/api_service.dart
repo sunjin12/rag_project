@@ -130,6 +130,15 @@ class ApiService {
     }
   }
 
+  /// 페르소나 삭제 (연관된 파일, 세션, 메시지, 벡터 모두 삭제)
+  Future<void> deletePersona(String personaId) async {
+    try {
+      await _dio.delete('/personas/$personaId');
+    } on DioException catch (e) {
+      throw Exception('Failed to delete persona: ${e.message}');
+    }
+  }
+
   /// 페르소나의 업로드된 파일 목록 조회
   Future<List<Map<String, dynamic>>> getFiles(String personaId) async {
     try {

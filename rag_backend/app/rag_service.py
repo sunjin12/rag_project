@@ -56,7 +56,7 @@ COLLECTION_NAME = "rag_documents"
 CHUNK_SIZE = 512
 CHUNK_OVERLAP = 64
 TOP_K = 5
-LLM_MODEL = "qwen2.5:7b"
+LLM_MODEL = settings.llm_model
 AUDIO_EXTENSIONS = (".mp3", ".wav", ".m4a", ".ogg", ".flac", ".webm")
 WHISPER_MODEL_SIZE = "base"  # tiny, base, small, medium, large-v3
 

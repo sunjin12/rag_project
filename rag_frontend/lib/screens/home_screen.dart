@@ -107,7 +107,61 @@ class _HomeScreenState extends State<HomeScreen> {
             itemCount: personaProvider.personas.length,
             itemBuilder: (context, index) {
               final persona = personaProvider.personas[index];
-              return PersonaCard(persona: persona);
+              return Dismissible(
+                key: Key(persona.id),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 24),
+                  margin: const EdgeInsets.only(bottom: AppTheme.spacing12),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.delete, color: Colors.white, size: 28),
+                      SizedBox(height: 4),
+                      Text('삭제', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+                confirmDismiss: (direction) async {
+                  return await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('페르소나 삭제'),
+                      content: Text(
+                        '\'${persona.name}\'을(를) 삭제하시겠습니까?\n\n'
+                        '모든 대화 기록, 업로드된 파일, 벡터 데이터가 함께 삭제됩니다.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('취소'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          style: TextButton.styleFrom(foregroundColor: Colors.red),
+                          child: const Text('삭제'),
+                        ),
+                      ],
+                    ),
+                  ) ?? false;
+                },
+                onDismissed: (direction) async {
+                  final provider = context.read<PersonaProvider>();
+                  final success = await provider.deletePersona(persona.id);
+                  if (!success && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('삭제에 실패했습니다')),
+                    );
+                    provider.loadPersonas();
+                  }
+                },
+                child: PersonaCard(persona: persona),
+              );
             },
           );
         },

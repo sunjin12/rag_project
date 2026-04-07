@@ -18,6 +18,7 @@ class ChatProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _isStreaming = false;
   String? _errorMessage;
+  String? _statusMessage;
 
   ChatProvider(this.apiService);
 
@@ -27,6 +28,7 @@ class ChatProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isStreaming => _isStreaming;
   String? get errorMessage => _errorMessage;
+  String? get statusMessage => _statusMessage;
 
   /// 세션 목록 로드
   Future<void> loadSessions(String personaId) async {
@@ -135,6 +137,7 @@ class ChatProvider extends ChangeNotifier {
     );
     _messages.add(userMessage);
     _isStreaming = true;
+    _statusMessage = null;
     _errorMessage = null;
     notifyListeners();
 
@@ -152,6 +155,7 @@ class ChatProvider extends ChangeNotifier {
     }
 
     _isStreaming = false;
+    _statusMessage = null;
     // 세션 목록의 메시지 수 갱신을 위해 리로드
     await loadSessions(personaId);
     notifyListeners();
@@ -175,6 +179,16 @@ class ChatProvider extends ChangeNotifier {
     final stream = await apiService.streamMessage(personaId, content,
         sessionId: _currentSessionId);
     await for (final token in stream) {
+      // [STATUS] 이벤트 처리
+      if (token.startsWith('[STATUS] ')) {
+        _statusMessage = token.substring(9);
+        notifyListeners();
+        continue;
+      }
+      // 첫 실제 토큰 도착 시 상태 메시지 제거
+      if (_statusMessage != null) {
+        _statusMessage = null;
+      }
       buffer.write(token);
       // 기존 메시지를 새 내용으로 교체 (immutable 패턴)
       _messages[aiIndex] = Message(

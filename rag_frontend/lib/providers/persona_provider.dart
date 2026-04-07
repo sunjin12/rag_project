@@ -116,6 +116,22 @@ class PersonaProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> deletePersona(String personaId) async {
+    try {
+      await apiService.deletePersona(personaId);
+      _personas.removeWhere((p) => p.id == personaId);
+      if (_selectedPersona?.id == personaId) {
+        _selectedPersona = null;
+      }
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = '페르소나 삭제 실패: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
   void selectPersona(Persona persona) {
     _selectedPersona = persona;
     notifyListeners();

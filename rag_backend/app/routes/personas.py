@@ -34,7 +34,7 @@ from ..database import (
     ChatSessionDB,
     MessageDB,
 )
-from ..rag_service import rag_service
+from ..rag_service import rag_service, ollama_client, LLM_MODEL
 from ..cache import redis_cache
 
 router = APIRouter(prefix="/personas", tags=["personas"])
@@ -443,16 +443,26 @@ async def ask_persona_stream(
     db.refresh(user_msg)
 
     async def event_generator():
-        """SSE 이벤트 생성기 — 토큰 단위로 data: 라인 전송"""
+        """SSE 이벤트 생성기 — 단계별 상태 + 토큰 단위 data: 라인 전송"""
         collected = []
         try:
-            async for token in rag_service.query_stream(
-                persona_id=persona.id,
-                question=question,
-                persona_name=persona.name,
-            ):
-                collected.append(token)
-                yield f"data: {token}\n\n"
+            # 1단계: 문서 검색
+            yield "data: [STATUS] 문서 검색 중...\n\n"
+            context_chunks = await rag_service.retrieve(persona.id, question)
+
+            # 2단계: 응답 생성
+            yield "data: [STATUS] 응답 생성 중...\n\n"
+            prompt = rag_service._build_prompt(question, context_chunks, persona.name)
+            stream = ollama_client.chat(
+                model=LLM_MODEL,
+                messages=[{"role": "user", "content": prompt}],
+                stream=True,
+            )
+            for chunk in stream:
+                token = chunk["message"]["content"]
+                if token:
+                    collected.append(token)
+                    yield f"data: {token}\n\n"
 
             # 스트림 완료 후 전체 응답을 DB에 저장
             full_response = "".join(collected)

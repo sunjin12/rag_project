@@ -43,6 +43,7 @@ class Settings(BaseSettings):
 
     # --- Ollama ---
     ollama_url: str = "http://localhost:11434"
+    llm_model: str = "qwen3:8b"
 
     # --- Qdrant ---
     qdrant_url: str = "http://localhost:6333"

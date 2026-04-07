@@ -501,7 +501,15 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemCount: chatProvider.messages.length,
                   itemBuilder: (context, index) {
                     final message = chatProvider.messages[index];
-                    return MessageBubble(message: message);
+                    // 마지막 AI 메시지가 비어있고 상태 메시지가 있으면 버블 안에 표시
+                    final isLastEmpty = index == chatProvider.messages.length - 1 &&
+                        !message.isUser &&
+                        message.content.isEmpty &&
+                        chatProvider.statusMessage != null;
+                    return MessageBubble(
+                      message: message,
+                      statusMessage: isLastEmpty ? chatProvider.statusMessage : null,
+                    );
                   },
                 );
               },
