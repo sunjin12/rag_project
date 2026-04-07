@@ -26,6 +26,7 @@ from sqlalchemy import (
     Text,
     Boolean,
     Integer,
+    Float,
     DateTime,
     ForeignKey,
     create_engine,
@@ -176,6 +177,30 @@ class MessageDB(Base):
 
     # 관계
     session = relationship("ChatSessionDB", back_populates="messages")
+
+
+class RagEvaluationDB(Base):
+    """
+    RAG 검색 품질 평가 테이블
+
+    각 질의에 대한 벡터 검색 유사도 점수를 기록합니다.
+    오프라인 리포트에서 검색 품질 추이를 분석하는 데 사용됩니다.
+    """
+    __tablename__ = "rag_evaluations"
+
+    id = Column(String, primary_key=True, default=_new_uuid)
+    message_id = Column(String, ForeignKey("messages.id", ondelete="CASCADE"), nullable=True, index=True)
+    persona_id = Column(String, ForeignKey("personas.id", ondelete="CASCADE"), nullable=False, index=True)
+    question = Column(Text, nullable=False)
+    avg_similarity = Column(Float, nullable=False, default=0.0)
+    min_similarity = Column(Float, nullable=False, default=0.0)
+    max_similarity = Column(Float, nullable=False, default=0.0)
+    num_chunks = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), default=_utcnow)
+
+    # 관계
+    message = relationship("MessageDB")
+    persona = relationship("PersonaDB")
 
 
 # ─── DB 초기화 & 세션 의존성 ──────────────────────────────

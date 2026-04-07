@@ -226,13 +226,13 @@ class RAGService:
 
     # ── 4. 유사 문맥 검색 ─────────────────────────────────
 
-    async def retrieve(self, persona_id: str, query: str, top_k: int = TOP_K) -> list[str]:
+    async def retrieve(self, persona_id: str, query: str, top_k: int = TOP_K) -> list[dict]:
         """
         질문과 유사한 문서 청크를 Qdrant에서 검색합니다.
         Redis 캐시가 있으면 캐시 우선 사용합니다.
 
         Returns:
-            관련 텍스트 청크 리스트 (유사도 순)
+            [{"text": str, "score": float}, ...] 유사도 순
         """
         # 캐시 확인
         cached = await redis_cache.get_context(persona_id, query)
@@ -253,7 +253,10 @@ class RAGService:
             ),
             limit=top_k,
         )
-        chunks = [hit.payload["text"] for hit in results.points if hit.payload]
+        chunks = [
+            {"text": hit.payload["text"], "score": hit.score}
+            for hit in results.points if hit.payload
+        ]
 
         # 캐시에 저장
         await redis_cache.set_context(persona_id, query, chunks)
@@ -263,10 +266,19 @@ class RAGService:
     # ── 5. 프롬프트 구성 ──────────────────────────────────
 
     @staticmethod
-    def _build_prompt(question: str, context_chunks: list[str], persona_name: str) -> str:
+    def _extract_texts(chunks: list[dict]) -> list[str]:
+        """검색 결과에서 텍스트만 추출"""
+        return [c["text"] if isinstance(c, dict) else c for c in chunks]
+
+    @staticmethod
+    def _build_prompt(question: str, context_chunks: list, persona_name: str) -> str:
         """RAG 프롬프트 생성 — 검색된 문맥 + 사용자 질문"""
-        if context_chunks:
-            context_block = "\n\n---\n\n".join(context_chunks)
+        # dict(text+score) 또는 str 모두 지원
+        texts = [
+            c["text"] if isinstance(c, dict) else c for c in context_chunks
+        ] if context_chunks else []
+        if texts:
+            context_block = "\n\n---\n\n".join(texts)
             return (
                 f"당신은 '{persona_name}'이라는 AI 어시스턴트입니다.\n"
                 f"아래의 참고 문서를 바탕으로 사용자의 질문에 답변하세요.\n"
@@ -290,8 +302,8 @@ class RAGService:
         """
         RAG 파이프라인 전체 실행 — 검색 → 프롬프트 → LLM → 전체 응답 반환
         """
-        context_chunks = await self.retrieve(persona_id, question)
-        prompt = self._build_prompt(question, context_chunks, persona_name)
+        results = await self.retrieve(persona_id, question)
+        prompt = self._build_prompt(question, results, persona_name)
 
         response = ollama_client.chat(
             model=LLM_MODEL,
@@ -311,8 +323,8 @@ class RAGService:
             async for token in rag_service.query_stream(pid, "질문"):
                 yield f"data: {token}\\n\\n"
         """
-        context_chunks = await self.retrieve(persona_id, question)
-        prompt = self._build_prompt(question, context_chunks, persona_name)
+        results = await self.retrieve(persona_id, question)
+        prompt = self._build_prompt(question, results, persona_name)
 
         stream = ollama_client.chat(
             model=LLM_MODEL,

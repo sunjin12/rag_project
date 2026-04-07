@@ -73,7 +73,7 @@ class RedisCache:
         """페르소나별 캐시 키 패턴"""
         return f"{CONTEXT_PREFIX}{persona_id}:*"
 
-    async def get_context(self, persona_id: str, question: str) -> Optional[list[str]]:
+    async def get_context(self, persona_id: str, question: str) -> Optional[list]:
         """캐시된 검색 컨텍스트 조회"""
         if not self._redis:
             return None
@@ -88,7 +88,7 @@ class RedisCache:
             logger.warning("[Cache] 조회 실패: %s", e)
             return None
 
-    async def set_context(self, persona_id: str, question: str, chunks: list[str]):
+    async def set_context(self, persona_id: str, question: str, chunks: list):
         """검색 컨텍스트를 캐시에 저장"""
         if not self._redis:
             return

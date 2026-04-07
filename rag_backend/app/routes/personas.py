@@ -33,6 +33,7 @@ from ..database import (
     UploadedFileDB,
     ChatSessionDB,
     MessageDB,
+    RagEvaluationDB,
 )
 from ..rag_service import rag_service, ollama_client, LLM_MODEL
 from ..cache import redis_cache
@@ -404,6 +405,25 @@ async def ask_persona(
     db.commit()
     db.refresh(ai_msg)
 
+    # 검색 품질 평가 로깅 (비동기적으로 실패해도 응답에 영향 없음)
+    try:
+        retrieve_results = await rag_service.retrieve(persona.id, question)
+        scores = [r["score"] for r in retrieve_results if isinstance(r, dict) and "score" in r]
+        if scores:
+            evaluation = RagEvaluationDB(
+                message_id=ai_msg.id,
+                persona_id=persona.id,
+                question=question,
+                avg_similarity=sum(scores) / len(scores),
+                min_similarity=min(scores),
+                max_similarity=max(scores),
+                num_chunks=len(scores),
+            )
+            db.add(evaluation)
+            db.commit()
+    except Exception as e:
+        logger.warning("[Eval] 평가 로깅 실패: %s", e)
+
     return MessageResponse(
         id=ai_msg.id,
         content=ai_msg.content,
@@ -445,14 +465,15 @@ async def ask_persona_stream(
     async def event_generator():
         """SSE 이벤트 생성기 — 단계별 상태 + 토큰 단위 data: 라인 전송"""
         collected = []
+        retrieve_results = []
         try:
             # 1단계: 문서 검색
             yield "data: [STATUS] 문서 검색 중...\n\n"
-            context_chunks = await rag_service.retrieve(persona.id, question)
+            retrieve_results = await rag_service.retrieve(persona.id, question)
 
             # 2단계: 응답 생성
             yield "data: [STATUS] 응답 생성 중...\n\n"
-            prompt = rag_service._build_prompt(question, context_chunks, persona.name)
+            prompt = rag_service._build_prompt(question, retrieve_results, persona.name)
             stream = ollama_client.chat(
                 model=LLM_MODEL,
                 messages=[{"role": "user", "content": prompt}],
@@ -473,6 +494,25 @@ async def ask_persona_stream(
             )
             db.add(ai_msg)
             db.commit()
+            db.refresh(ai_msg)
+
+            # 검색 품질 평가 로깅
+            try:
+                scores = [r["score"] for r in retrieve_results if isinstance(r, dict) and "score" in r]
+                if scores:
+                    evaluation = RagEvaluationDB(
+                        message_id=ai_msg.id,
+                        persona_id=persona.id,
+                        question=question,
+                        avg_similarity=sum(scores) / len(scores),
+                        min_similarity=min(scores),
+                        max_similarity=max(scores),
+                        num_chunks=len(scores),
+                    )
+                    db.add(evaluation)
+                    db.commit()
+            except Exception as eval_err:
+                logger.warning("[Eval] 스트리밍 평가 로깅 실패: %s", eval_err)
 
             # 완료 이벤트 전송
             yield "data: [DONE]\n\n"

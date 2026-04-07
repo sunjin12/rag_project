@@ -33,3 +33,6 @@ faster-whisper
 
 # === 문서 처리 ===
 pymupdf
+
+# === 평가/시각화 ===
+matplotlib
