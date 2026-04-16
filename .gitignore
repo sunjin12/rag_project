@@ -33,6 +33,7 @@ build/
 .idea/
 *.swp
 *.swo
+.claude/
 
 # Flutter build artifacts
 rag_frontend/build/
@@ -49,6 +50,32 @@ Thumbs.db
 # Tool artifacts
 .specstory/
 chat_history/
+
+# Python testing / linter cache
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Code coverage
+htmlcov/
+.coverage
+coverage.xml
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+
+# RAG evaluation reports
+reports/
+
+# SSL certificates
+*.pem
+*.key
+*.crt
+
+# Flutter plugins
+.flutter-plugins
 
 # Temp files
 *.tmp
